@@ -1,0 +1,236 @@
+<Window x:Class="DeviceProfileManager.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="RadSync - Device Profile Manager"
+        Height="920" Width="540"
+        MinHeight="880" MinWidth="500"
+        Background="{StaticResource BackgroundBrush}"
+        WindowStartupLocation="CenterScreen">
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Profile Selection -->
+        <Border Grid.Row="0" Style="{StaticResource CardBorder}" Margin="0,0,0,16">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Text="Profile" Style="{StaticResource HeaderText}" Margin="0,0,0,12"/>
+
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <ComboBox x:Name="ProfileComboBox"
+                              SelectionChanged="ProfileComboBox_SelectionChanged"/>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="12,0,0,0">
+                        <Button Content="+" Style="{StaticResource SecondaryButton}" Width="36" Padding="0,8"
+                                Click="AddProfile_Click" ToolTip="Add Profile"/>
+                        <Button Content="-" Style="{StaticResource SecondaryButton}" Width="36" Padding="0,8" Margin="8,0,0,0"
+                                Click="DeleteProfile_Click" ToolTip="Delete Profile"/>
+                        <Button Content="Rename" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0"
+                                Click="RenameProfile_Click"/>
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,16,0,0">
+                    <Button Content="Apply Profile"
+                            Style="{StaticResource PrimaryButton}"
+                            Click="ApplyProfile_Click"
+                            Margin="0,0,12,0"/>
+                    <Button Content="Save to Profile"
+                            Style="{StaticResource PrimaryButton}"
+                            Click="SaveProfile_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Configurations Section -->
+        <Border Grid.Row="1" Style="{StaticResource CardBorder}" Margin="0,0,0,16">
+            <StackPanel>
+                <TextBlock Text="Configurations" Style="{StaticResource HeaderText}" Margin="0,0,0,16"/>
+
+                <!-- Logitech -->
+                <Grid x:Name="LogitechRow" Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <CheckBox x:Name="LogitechCheckBox" Grid.Column="0" IsChecked="True" VerticalAlignment="Center"
+                              Checked="DeviceCheckBox_Changed" Unchecked="DeviceCheckBox_Changed" Tag="Logitech"/>
+                    <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                        <TextBlock Text="Logitech G Hub" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <TextBlock x:Name="LogitechStatus" Style="{StaticResource SecondaryText}"/>
+                            <TextBlock Text=" | " Style="{StaticResource SecondaryText}" x:Name="LogitechSep1"/>
+                            <TextBlock x:Name="LogitechSaveLink" Text="Save" Style="{StaticResource SecondaryText}" Foreground="{StaticResource PrimaryBrush}"
+                                       Cursor="Hand" MouseDown="SaveLogitech_Click" TextDecorations="Underline"/>
+                            <TextBlock Text=" | " Style="{StaticResource SecondaryText}" x:Name="LogitechSep2"/>
+                            <TextBlock x:Name="LogitechRevertLink" Text="Revert" Style="{StaticResource SecondaryText}" Foreground="{StaticResource RevertBrush}"
+                                       Cursor="Hand" MouseDown="RevertLogitech_Click" TextDecorations="Underline"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <Button x:Name="LogitechApplyBtn" Grid.Column="2" Content="Apply" Style="{StaticResource SecondaryButton}"
+                            Click="ApplyLogitech_Click" Width="70"/>
+                </Grid>
+
+                <!-- Stream Deck -->
+                <Grid x:Name="StreamDeckRow" Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <CheckBox x:Name="StreamDeckCheckBox" Grid.Column="0" IsChecked="True" VerticalAlignment="Center"
+                              Checked="DeviceCheckBox_Changed" Unchecked="DeviceCheckBox_Changed" Tag="StreamDeck"/>
+                    <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                        <TextBlock Text="Elgato Stream Deck" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <TextBlock x:Name="StreamDeckStatus" Style="{StaticResource SecondaryText}"/>
+                            <TextBlock Text=" | " Style="{StaticResource SecondaryText}" x:Name="StreamDeckSep1"/>
+                            <TextBlock x:Name="StreamDeckSaveLink" Text="Save" Style="{StaticResource SecondaryText}" Foreground="{StaticResource PrimaryBrush}"
+                                       Cursor="Hand" MouseDown="SaveStreamDeck_Click" TextDecorations="Underline"/>
+                            <TextBlock Text=" | " Style="{StaticResource SecondaryText}" x:Name="StreamDeckSep2"/>
+                            <TextBlock x:Name="StreamDeckRevertLink" Text="Revert" Style="{StaticResource SecondaryText}" Foreground="{StaticResource RevertBrush}"
+                                       Cursor="Hand" MouseDown="RevertStreamDeck_Click" TextDecorations="Underline"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <Button x:Name="StreamDeckApplyBtn" Grid.Column="2" Content="Apply" Style="{StaticResource SecondaryButton}"
+                            Click="ApplyStreamDeck_Click" Width="70"/>
+                </Grid>
+
+                <!-- SpeechMic -->
+                <Grid x:Name="SpeechMicRow" Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <CheckBox x:Name="SpeechMicCheckBox" Grid.Column="0" IsChecked="True" VerticalAlignment="Center"
+                              Checked="DeviceCheckBox_Changed" Unchecked="DeviceCheckBox_Changed" Tag="SpeechMic"/>
+                    <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                        <TextBlock Text="Philips SpeechMic" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <TextBlock x:Name="SpeechMicStatus" Style="{StaticResource SecondaryText}"/>
+                            <TextBlock Text=" | " Style="{StaticResource SecondaryText}" x:Name="SpeechMicSep1"/>
+                            <TextBlock x:Name="SpeechMicSaveLink" Text="Save" Style="{StaticResource SecondaryText}" Foreground="{StaticResource PrimaryBrush}"
+                                       Cursor="Hand" MouseDown="SaveSpeechMic_Click" TextDecorations="Underline"/>
+                            <TextBlock Text=" | " Style="{StaticResource SecondaryText}" x:Name="SpeechMicSep2"/>
+                            <TextBlock x:Name="SpeechMicRevertLink" Text="Revert" Style="{StaticResource SecondaryText}" Foreground="{StaticResource RevertBrush}"
+                                       Cursor="Hand" MouseDown="RevertSpeechMic_Click" TextDecorations="Underline"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <Button x:Name="SpeechMicApplyBtn" Grid.Column="2" Content="Apply" Style="{StaticResource SecondaryButton}"
+                            Click="ApplySpeechMic_Click" Width="70"/>
+                </Grid>
+
+                <!-- Mosaic Hotkeys -->
+                <Grid x:Name="MosaicHotkeysRow" Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <CheckBox x:Name="MosaicHotkeysCheckBox" Grid.Column="0" IsChecked="True" VerticalAlignment="Center"
+                              Checked="DeviceCheckBox_Changed" Unchecked="DeviceCheckBox_Changed" Tag="MosaicHotkeys"/>
+                    <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                        <TextBlock Text="Mosaic Combined Hotkeys" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <TextBlock x:Name="MosaicHotkeysStatus" Style="{StaticResource SecondaryText}"/>
+                            <TextBlock Text=" | " Style="{StaticResource SecondaryText}" x:Name="MosaicHotkeysSep1"/>
+                            <TextBlock x:Name="MosaicHotkeysSaveLink" Text="Save" Style="{StaticResource SecondaryText}" Foreground="{StaticResource PrimaryBrush}"
+                                       Cursor="Hand" MouseDown="SaveMosaicHotkeys_Click" TextDecorations="Underline"/>
+                            <TextBlock Text=" | " Style="{StaticResource SecondaryText}" x:Name="MosaicHotkeysSep2"/>
+                            <TextBlock x:Name="MosaicHotkeysRevertLink" Text="Revert" Style="{StaticResource SecondaryText}" Foreground="{StaticResource RevertBrush}"
+                                       Cursor="Hand" MouseDown="RevertMosaicHotkeys_Click" TextDecorations="Underline"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <Button x:Name="MosaicHotkeysApplyBtn" Grid.Column="2" Content="Apply" Style="{StaticResource SecondaryButton}"
+                            Click="ApplyMosaicHotkeys_Click" Width="70"/>
+                </Grid>
+
+                <!-- Mosaic Tools -->
+                <Grid x:Name="MosaicToolsRow">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <CheckBox x:Name="MosaicToolsCheckBox" Grid.Column="0" IsChecked="True" VerticalAlignment="Center"
+                              Checked="DeviceCheckBox_Changed" Unchecked="DeviceCheckBox_Changed" Tag="MosaicTools"/>
+                    <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                        <TextBlock Text="Mosaic Tools Settings" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <TextBlock x:Name="MosaicToolsStatus" Style="{StaticResource SecondaryText}"/>
+                            <TextBlock Text=" | " Style="{StaticResource SecondaryText}" x:Name="MosaicToolsSep1"/>
+                            <TextBlock x:Name="MosaicToolsSaveLink" Text="Save" Style="{StaticResource SecondaryText}" Foreground="{StaticResource PrimaryBrush}"
+                                       Cursor="Hand" MouseDown="SaveMosaicTools_Click" TextDecorations="Underline"/>
+                            <TextBlock Text=" | " Style="{StaticResource SecondaryText}" x:Name="MosaicToolsSep2"/>
+                            <TextBlock x:Name="MosaicToolsRevertLink" Text="Revert" Style="{StaticResource SecondaryText}" Foreground="{StaticResource RevertBrush}"
+                                       Cursor="Hand" MouseDown="RevertMosaicTools_Click" TextDecorations="Underline"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <Button x:Name="MosaicToolsApplyBtn" Grid.Column="2" Content="Apply" Style="{StaticResource SecondaryButton}"
+                            Click="ApplyMosaicTools_Click" Width="70"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Options Section -->
+        <Border Grid.Row="2" Style="{StaticResource CardBorder}" Margin="0,0,0,16" VerticalAlignment="Top">
+            <StackPanel>
+                <TextBlock Text="Options" Style="{StaticResource HeaderText}" Margin="0,0,0,16"/>
+                <CheckBox x:Name="RunOnStartupCheckBox" Content="Run on Windows startup" Margin="0,0,0,12"
+                          Checked="RunOnStartup_Changed" Unchecked="RunOnStartup_Changed"/>
+                <CheckBox x:Name="AutoApplyCheckBox" Content="Auto-apply profile on startup"
+                          Checked="AutoApply_Changed" Unchecked="AutoApply_Changed"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Action Buttons -->
+        <Grid Grid.Row="3" Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0" Content="Check Utilities" Style="{StaticResource SecondaryButton}"
+                    Click="CheckUtilities_Click" Margin="0,0,8,0"
+                    ToolTip="Hold Shift to simulate missing utilities for testing"/>
+            <Button Grid.Column="1" Content="Save All" Style="{StaticResource PrimaryButton}"
+                    Click="SaveAll_Click" Margin="4,0,4,0"/>
+            <Button Grid.Column="2" Content="Apply All" Style="{StaticResource PrimaryButton}"
+                    Click="ApplyAll_Click" Margin="8,0,0,0"/>
+        </Grid>
+
+        <!-- Status Bar -->
+        <Border Grid.Row="4" Style="{StaticResource StatusBar}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="StatusText" Text="Ready" FontSize="13" FontWeight="Medium" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock x:Name="VersionText" Style="{StaticResource SecondaryText}" Margin="0,0,12,0"/>
+                    <TextBlock Text="Check for Updates" Style="{StaticResource SecondaryText}" Foreground="{StaticResource PrimaryBrush}"
+                               Cursor="Hand" MouseDown="CheckUpdates_Click" TextDecorations="Underline"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
