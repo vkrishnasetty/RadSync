@@ -209,8 +209,7 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <Button Grid.Column="0" Content="Check Utilities" Style="{StaticResource SecondaryButton}"
-                    Click="CheckUtilities_Click" Margin="0,0,8,0"
-                    ToolTip="Hold Shift to simulate missing utilities for testing"/>
+                    Click="CheckUtilities_Click" Margin="0,0,8,0"/>
             <Button Grid.Column="1" Content="Save All" Style="{StaticResource PrimaryButton}"
                     Click="SaveAll_Click" Margin="4,0,4,0"/>
             <Button Grid.Column="2" Content="Apply All" Style="{StaticResource PrimaryButton}"

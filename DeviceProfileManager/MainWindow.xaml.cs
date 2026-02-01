@@ -572,57 +572,23 @@ namespace DeviceProfileManager
         {
             UpdateDeviceStatuses();
 
-            // Test mode: Hold Shift to simulate all utilities missing
-            bool testMode = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
+            // Test mode: Hold Shift to simulate all utilities missing (for testing dialog UI)
+            // bool testMode = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
 
-            var missingLogitech = testMode || !_utilityChecker.IsLogitechInstalled();
-            var missingStreamDeck = testMode || !_utilityChecker.IsStreamDeckInstalled();
-            var missingSpeechMic = testMode || !_utilityChecker.IsSpeechMicInstalled();
+            // Get actual install status
+            var logitechInstalled = _utilityChecker.IsLogitechInstalled();
+            var streamDeckInstalled = _utilityChecker.IsStreamDeckInstalled();
+            var speechMicInstalled = _utilityChecker.IsSpeechMicInstalled();
 
-            if (!missingLogitech && !missingStreamDeck && !missingSpeechMic)
+            if (logitechInstalled && streamDeckInstalled && speechMicInstalled)
             {
                 SetStatusSuccess("All device utilities are installed");
-                return;
             }
 
-            if (testMode)
-            {
-                SetStatus("TEST MODE: Simulating missing utilities");
-            }
-
-            // Show selection dialog
-            var dialog = new UtilityInstallDialog(missingLogitech, missingStreamDeck, missingSpeechMic);
+            // Show install dialog with individual download buttons (always allow access for updates)
+            var dialog = new UtilityInstallDialog(logitechInstalled, streamDeckInstalled, speechMicInstalled, _utilityChecker);
             dialog.Owner = this;
-            if (dialog.ShowDialog() == true)
-            {
-                InstallSelectedUtilities(dialog.InstallLogitech, dialog.InstallStreamDeck, dialog.InstallSpeechMic);
-            }
-        }
-
-        private void InstallSelectedUtilities(bool logitech, bool streamDeck, bool speechMic)
-        {
-            if (logitech)
-            {
-                var (success, message) = _utilityChecker.OpenLogitechDownloadPage();
-                SetStatus(message, !success);
-            }
-
-            if (streamDeck)
-            {
-                var (success, message) = _utilityChecker.OpenStreamDeckDownloadPage();
-                SetStatus(message, !success);
-            }
-
-            if (speechMic)
-            {
-                var (success, message) = _utilityChecker.OpenSpeechMicDownloadPage();
-                SetStatus(message, !success);
-            }
-
-            if (logitech || streamDeck || speechMic)
-            {
-                SetStatusSuccess("Download pages opened. Install the software and restart RadSync.");
-            }
+            dialog.ShowDialog();
         }
 
         // Startup Options
@@ -742,114 +708,140 @@ namespace DeviceProfileManager
         }
     }
 
-    // Dialog for selecting which utilities to install
+    // Dialog for downloading/updating utilities - dark mode themed
     public class UtilityInstallDialog : Window
     {
-        private readonly CheckBox _logitechCheckBox;
-        private readonly CheckBox _streamDeckCheckBox;
-        private readonly CheckBox _speechMicCheckBox;
+        private readonly UtilityChecker _utilityChecker;
 
-        public bool InstallLogitech => _logitechCheckBox?.IsChecked == true;
-        public bool InstallStreamDeck => _streamDeckCheckBox?.IsChecked == true;
-        public bool InstallSpeechMic => _speechMicCheckBox?.IsChecked == true;
-
-        public UtilityInstallDialog(bool missingLogitech, bool missingStreamDeck, bool missingSpeechMic)
+        public UtilityInstallDialog(bool logitechInstalled, bool streamDeckInstalled, bool speechMicInstalled, UtilityChecker utilityChecker)
         {
-            Title = "Install Missing Utilities";
-            Width = 380;
-            Height = 250;
+            _utilityChecker = utilityChecker;
+
+            Title = "Download Utilities";
+            Width = 450;
+            Height = 380;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             ResizeMode = ResizeMode.NoResize;
+            Background = new SolidColorBrush(Color.FromRgb(0x0F, 0x17, 0x2A)); // BackgroundColor
 
-            var grid = new Grid { Margin = new Thickness(16) };
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-            var label = new TextBlock
+            var border = new Border
             {
-                Text = "Select which utilities to install:",
-                Margin = new Thickness(0, 0, 0, 12),
-                FontWeight = FontWeights.SemiBold
+                Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x29, 0x3B)), // CardBackground
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0x33, 0x41, 0x55)), // BorderColor
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(12),
+                Margin = new Thickness(16),
+                Padding = new Thickness(24)
             };
-            Grid.SetRow(label, 0);
-            grid.Children.Add(label);
 
-            _logitechCheckBox = new CheckBox
+            var mainStack = new StackPanel();
+
+            var headerText = new TextBlock
             {
-                Content = "Logitech G Hub",
-                IsChecked = missingLogitech,
-                IsEnabled = missingLogitech,
-                Margin = new Thickness(0, 0, 0, 8)
+                Text = "Download Utilities",
+                FontSize = 16,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xF1, 0xF5, 0xF9)), // TextColor
+                Margin = new Thickness(0, 0, 0, 12)
             };
-            if (!missingLogitech) _logitechCheckBox.Content = "Logitech G Hub (already installed)";
-            Grid.SetRow(_logitechCheckBox, 1);
-            grid.Children.Add(_logitechCheckBox);
+            mainStack.Children.Add(headerText);
 
-            _streamDeckCheckBox = new CheckBox
+            var noteText = new TextBlock
             {
-                Content = "Elgato Stream Deck",
-                IsChecked = missingStreamDeck,
-                IsEnabled = missingStreamDeck,
-                Margin = new Thickness(0, 0, 0, 8)
+                Text = "Click Download to open the vendor's download page. You can download updates even if already installed.",
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x94, 0xA3, 0xB8)), // SecondaryTextColor
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 20)
             };
-            if (!missingStreamDeck) _streamDeckCheckBox.Content = "Elgato Stream Deck (already installed)";
-            Grid.SetRow(_streamDeckCheckBox, 2);
-            grid.Children.Add(_streamDeckCheckBox);
+            mainStack.Children.Add(noteText);
 
-            _speechMicCheckBox = new CheckBox
+            // Logitech row
+            mainStack.Children.Add(CreateUtilityRow("Logitech G Hub", logitechInstalled, () =>
             {
-                Content = "Philips Device Control Center",
-                IsChecked = missingSpeechMic,
-                IsEnabled = missingSpeechMic,
-                Margin = new Thickness(0, 0, 0, 8)
-            };
-            if (!missingSpeechMic) _speechMicCheckBox.Content = "Philips Device Control Center (already installed)";
-            Grid.SetRow(_speechMicCheckBox, 3);
-            grid.Children.Add(_speechMicCheckBox);
+                _utilityChecker.OpenLogitechDownloadPage();
+            }));
 
-            var noteLabel = new TextBlock
+            // Stream Deck row
+            mainStack.Children.Add(CreateUtilityRow("Elgato Stream Deck", streamDeckInstalled, () =>
             {
-                Text = "Note: Download pages will open in your browser.",
-                Margin = new Thickness(0, 8, 0, 0),
-                FontStyle = FontStyles.Italic,
-                Foreground = System.Windows.Media.Brushes.Gray,
-                TextWrapping = TextWrapping.Wrap
-            };
-            Grid.SetRow(noteLabel, 4);
-            grid.Children.Add(noteLabel);
+                _utilityChecker.OpenStreamDeckDownloadPage();
+            }));
 
-            var buttonPanel = new StackPanel
+            // SpeechMic row
+            mainStack.Children.Add(CreateUtilityRow("Philips Device Control Center", speechMicInstalled, () =>
             {
-                Orientation = Orientation.Horizontal,
-                HorizontalAlignment = HorizontalAlignment.Right
-            };
-            Grid.SetRow(buttonPanel, 5);
+                _utilityChecker.OpenSpeechMicDownloadPage();
+            }));
 
-            var installButton = new Button
+            // Close button
+            var closeButton = new Button
             {
-                Content = "Install Selected",
-                Width = 100,
-                Margin = new Thickness(0, 0, 8, 0),
-                IsDefault = true
+                Content = "Close",
+                Width = 80,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 20, 0, 0),
+                Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x29, 0x3B)),
+                Foreground = new SolidColorBrush(Color.FromRgb(0xF1, 0xF5, 0xF9)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0x33, 0x41, 0x55)),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(12, 8, 12, 8),
+                Cursor = Cursors.Hand
             };
-            installButton.Click += (s, e) => { DialogResult = true; Close(); };
-            buttonPanel.Children.Add(installButton);
+            closeButton.Click += (s, e) => Close();
+            mainStack.Children.Add(closeButton);
 
-            var cancelButton = new Button
+            border.Child = mainStack;
+            Content = border;
+        }
+
+        private Grid CreateUtilityRow(string name, bool isInstalled, Action downloadAction)
+        {
+            var grid = new Grid { Margin = new Thickness(0, 0, 0, 14) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var nameStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+
+            var nameText = new TextBlock
             {
-                Content = "Cancel",
-                Width = 75,
-                IsCancel = true
+                Text = name,
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xF1, 0xF5, 0xF9))
             };
-            cancelButton.Click += (s, e) => { DialogResult = false; Close(); };
-            buttonPanel.Children.Add(cancelButton);
+            nameStack.Children.Add(nameText);
 
-            grid.Children.Add(buttonPanel);
-            Content = grid;
+            var statusText = new TextBlock
+            {
+                Text = isInstalled ? "Installed" : "Not installed",
+                FontSize = 12,
+                Foreground = isInstalled
+                    ? new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x5E)) // SuccessColor
+                    : new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B)), // WarningColor
+                Margin = new Thickness(0, 2, 0, 0)
+            };
+            nameStack.Children.Add(statusText);
+
+            Grid.SetColumn(nameStack, 0);
+            grid.Children.Add(nameStack);
+
+            var downloadButton = new Button
+            {
+                Content = "Download",
+                Width = 90,
+                Background = new SolidColorBrush(Color.FromRgb(0x3B, 0x82, 0xF6)), // PrimaryColor
+                Foreground = new SolidColorBrush(Colors.White),
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(12, 8, 12, 8),
+                Cursor = Cursors.Hand
+            };
+            downloadButton.Click += (s, e) => downloadAction();
+
+            Grid.SetColumn(downloadButton, 1);
+            grid.Children.Add(downloadButton);
+
+            return grid;
         }
     }
 }
