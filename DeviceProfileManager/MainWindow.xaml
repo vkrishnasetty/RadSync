@@ -194,10 +194,15 @@
         <Border Grid.Row="2" Style="{StaticResource CardBorder}" Margin="0,0,0,16" VerticalAlignment="Top">
             <StackPanel>
                 <TextBlock Text="Options" Style="{StaticResource HeaderText}" Margin="0,0,0,16"/>
+
                 <CheckBox x:Name="RunOnStartupCheckBox" Content="Run on Windows startup" Margin="0,0,0,12"
                           Checked="RunOnStartup_Changed" Unchecked="RunOnStartup_Changed"/>
                 <CheckBox x:Name="AutoApplyCheckBox" Content="Auto-apply profile on startup"
                           Checked="AutoApply_Changed" Unchecked="AutoApply_Changed"/>
+                <TextBlock x:Name="StorageLocationLink" Text="Change storage location..."
+                           Style="{StaticResource SecondaryText}" Foreground="{StaticResource PrimaryBrush}"
+                           Cursor="Hand" MouseDown="BrowseStoragePath_Click" TextDecorations="Underline"
+                           Margin="0,16,0,0"/>
             </StackPanel>
         </Border>
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -8,13 +9,14 @@ using System.Windows.Input;
 using System.Windows.Media;
 using DeviceProfileManager.Models;
 using DeviceProfileManager.Services;
+using Microsoft.Win32;
 
 namespace DeviceProfileManager
 {
     public partial class MainWindow : Window
     {
-        private readonly ProfileManager _profileManager;
-        private readonly UtilityChecker _utilityChecker;
+        private ProfileManager _profileManager;
+        private UtilityChecker _utilityChecker;
         private AppSettings _settings;
         private readonly LogitechService _logitechService;
         private readonly StreamDeckService _streamDeckService;
@@ -22,15 +24,16 @@ namespace DeviceProfileManager
         private readonly MosaicHotkeysService _mosaicHotkeysService;
         private readonly MosaicToolsService _mosaicToolsService;
 
-        private const string ProfilesBasePath = @"H:\DeviceProfiles";
+        private const string DefaultProfilesPath = @"H:\DeviceProfiles";
+        private static readonly string LocalSettingsPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "RadSync", "settings.json");
+
+        private string _currentProfilesPath;
 
         public MainWindow()
         {
             InitializeComponent();
-
-            _profileManager = new ProfileManager(ProfilesBasePath);
-            _utilityChecker = new UtilityChecker(ProfilesBasePath);
-            _settings = _profileManager.LoadSettings();
 
             _logitechService = new LogitechService();
             _streamDeckService = new StreamDeckService();
@@ -38,11 +41,128 @@ namespace DeviceProfileManager
             _mosaicHotkeysService = new MosaicHotkeysService();
             _mosaicToolsService = new MosaicToolsService();
 
+            // Initialize storage path
+            _currentProfilesPath = DetermineProfilesPath();
+            InitializeWithPath(_currentProfilesPath);
+
+            VersionText.Text = $"v{UpdateService.CurrentVersion}";
+        }
+
+        private string DetermineProfilesPath()
+        {
+            // First, try to load saved settings from local AppData
+            var savedPath = LoadLocalSettings()?.ProfilesPath;
+
+            // If we have a saved custom path and it's accessible, use it
+            if (!string.IsNullOrEmpty(savedPath) && Directory.Exists(Path.GetPathRoot(savedPath)))
+            {
+                return savedPath;
+            }
+
+            // Check if default H: drive is available
+            if (Directory.Exists(Path.GetPathRoot(DefaultProfilesPath)))
+            {
+                return DefaultProfilesPath;
+            }
+
+            // H: drive not available and no custom path - prompt user
+            var result = MessageBox.Show(
+                "The default storage location (H:\\DeviceProfiles) is not available.\n\n" +
+                "Would you like to select a different location for storing your profiles?",
+                "Storage Location Required",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                var path = BrowseForFolder();
+                if (!string.IsNullOrEmpty(path))
+                {
+                    SaveLocalSettings(new AppSettings { ProfilesPath = path });
+                    return path;
+                }
+            }
+
+            // Fall back to a local folder if user cancels
+            var fallbackPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "RadSync", "DeviceProfiles");
+            SaveLocalSettings(new AppSettings { ProfilesPath = fallbackPath });
+            return fallbackPath;
+        }
+
+        private void InitializeWithPath(string profilesPath)
+        {
+            _profileManager = new ProfileManager(profilesPath);
+            _utilityChecker = new UtilityChecker(profilesPath);
+            _settings = _profileManager.LoadSettings();
+            _settings.ProfilesPath = profilesPath;
+
             LoadProfiles();
             LoadSettings();
             UpdateDeviceStatuses();
             UpdateAllDeviceRowStates();
-            VersionText.Text = $"v{UpdateService.CurrentVersion}";
+        }
+
+        private AppSettings LoadLocalSettings()
+        {
+            try
+            {
+                if (File.Exists(LocalSettingsPath))
+                {
+                    var json = File.ReadAllText(LocalSettingsPath);
+                    return System.Text.Json.JsonSerializer.Deserialize<AppSettings>(json);
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        private void SaveLocalSettings(AppSettings settings)
+        {
+            try
+            {
+                var dir = Path.GetDirectoryName(LocalSettingsPath);
+                if (!Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+
+                var json = System.Text.Json.JsonSerializer.Serialize(settings, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(LocalSettingsPath, json);
+            }
+            catch { }
+        }
+
+        private string BrowseForFolder()
+        {
+            var dialog = new System.Windows.Forms.FolderBrowserDialog
+            {
+                Description = "Select a folder to store device profiles",
+                UseDescriptionForTitle = true,
+                ShowNewFolderButton = true
+            };
+
+            if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                return dialog.SelectedPath;
+            }
+            return null;
+        }
+
+        private void BrowseStoragePath_Click(object sender, MouseButtonEventArgs e)
+        {
+            var path = BrowseForFolder();
+            if (!string.IsNullOrEmpty(path))
+            {
+                _currentProfilesPath = path;
+                _settings.ProfilesPath = path;
+
+                // Save to local settings
+                SaveLocalSettings(_settings);
+
+                // Reinitialize with new path
+                InitializeWithPath(path);
+                SetStatusSuccess($"Storage location changed to: {path}");
+            }
         }
 
         private void LoadProfiles()

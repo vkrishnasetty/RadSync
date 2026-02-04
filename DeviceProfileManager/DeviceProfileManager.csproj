@@ -4,10 +4,11 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net6.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>RadSync</AssemblyName>
     <RootNamespace>DeviceProfileManager</RootNamespace>
     <Product>RadSync</Product>
-    <Version>1.0.3</Version>
+    <Version>1.0.4</Version>
     <Authors>MosaicTools</Authors>
     <Description>RadSync - Sync device configurations for Logitech, Elgato, Philips and Mosaic tools across workstations.</Description>
     <ImplicitUsings>disable</ImplicitUsings>
