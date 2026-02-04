@@ -98,7 +98,7 @@ namespace DeviceProfileManager.Services
                 // Clean up any previous update attempt
                 if (Directory.Exists(tempDir))
                 {
-                    Directory.Delete(tempDir, true);
+                    try { Directory.Delete(tempDir, true); } catch { }
                 }
                 Directory.CreateDirectory(tempDir);
 
@@ -112,10 +112,25 @@ namespace DeviceProfileManager.Services
                     {
                         response.EnsureSuccessStatusCode();
 
+                        var totalBytes = response.Content.Headers.ContentLength ?? -1;
+                        var downloadedBytes = 0L;
+
                         using (var contentStream = await response.Content.ReadAsStreamAsync())
                         using (var fileStream = new FileStream(zipPath, FileMode.Create, FileAccess.Write))
                         {
-                            await contentStream.CopyToAsync(fileStream);
+                            var buffer = new byte[81920];
+                            int bytesRead;
+                            while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                            {
+                                await fileStream.WriteAsync(buffer, 0, bytesRead);
+                                downloadedBytes += bytesRead;
+
+                                if (totalBytes > 0)
+                                {
+                                    var percent = (int)((downloadedBytes * 100) / totalBytes);
+                                    statusProgress?.Report($"Downloading update... {percent}%");
+                                }
+                            }
                         }
                     }
                 }
@@ -145,30 +160,55 @@ namespace DeviceProfileManager.Services
 
                 var currentDir = Path.GetDirectoryName(currentExe);
                 var backupExe = currentExe + ".old";
+                var currentPid = Process.GetCurrentProcess().Id;
 
-                // Create a batch script to:
-                // 1. Wait for current process to exit
-                // 2. Replace the exe
-                // 3. Start the new exe
-                // 4. Clean up
-                var batchPath = Path.Combine(tempDir, "update.bat");
-                var batchContent = $@"@echo off
-timeout /t 2 /nobreak >nul
-del ""{backupExe}"" 2>nul
-move ""{currentExe}"" ""{backupExe}""
-xcopy ""{Path.GetDirectoryName(newExe)}\*.*"" ""{currentDir}\"" /E /Y /Q
-start """" ""{currentExe}""
-timeout /t 3 /nobreak >nul
-rd /s /q ""{tempDir}""
-del ""%~f0""
+                // Create PowerShell script for reliable update
+                // Script is placed outside the temp dir so cleanup works
+                var scriptPath = Path.Combine(Path.GetTempPath(), "RadSync_Updater.ps1");
+                var scriptContent = $@"
+# Wait for the application to exit
+$maxWait = 30
+$waited = 0
+while ((Get-Process -Id {currentPid} -ErrorAction SilentlyContinue) -and ($waited -lt $maxWait)) {{
+    Start-Sleep -Milliseconds 500
+    $waited++
+}}
+
+# Additional wait for file handles to release
+Start-Sleep -Seconds 1
+
+# Remove old backup if exists
+if (Test-Path '{backupExe}') {{
+    Remove-Item '{backupExe}' -Force -ErrorAction SilentlyContinue
+}}
+
+# Backup current exe
+if (Test-Path '{currentExe}') {{
+    Move-Item '{currentExe}' '{backupExe}' -Force -ErrorAction SilentlyContinue
+}}
+
+# Copy new exe (and any other files like .pdb)
+$sourceDir = '{Path.GetDirectoryName(newExe).Replace("\\", "\\\\")}'
+Copy-Item ""$sourceDir\*"" '{currentDir.Replace("\\", "\\\\")}' -Force -Recurse -ErrorAction SilentlyContinue
+
+# Start the updated application
+Start-Process '{currentExe}'
+
+# Cleanup
+Start-Sleep -Seconds 2
+Remove-Item '{tempDir.Replace("\\", "\\\\")}' -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item '{backupExe}' -Force -ErrorAction SilentlyContinue
+
+# Self-delete
+Remove-Item $MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyContinue
 ";
-                await File.WriteAllTextAsync(batchPath, batchContent);
+                await File.WriteAllTextAsync(scriptPath, scriptContent);
 
-                // Start the batch script hidden
+                // Start the PowerShell script hidden
                 var psi = new ProcessStartInfo
                 {
-                    FileName = "cmd.exe",
-                    Arguments = $"/c \"{batchPath}\"",
+                    FileName = "powershell.exe",
+                    Arguments = $"-ExecutionPolicy Bypass -WindowStyle Hidden -File \"{scriptPath}\"",
                     UseShellExecute = false,
                     CreateNoWindow = true,
                     WindowStyle = ProcessWindowStyle.Hidden

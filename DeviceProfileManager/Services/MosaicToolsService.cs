@@ -78,9 +78,37 @@ namespace DeviceProfileManager.Services
             }
         }
 
-        // Machine-specific keys to exclude
+        // Machine-specific keys to exclude (window positions, paths, etc.)
+        // These settings are workstation-specific and should not be synced
         private static readonly HashSet<string> MachineSpecificKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
+            // Window positions (all use snake_case in JSON)
+            "window_x",
+            "window_y",
+            "clinical_history_x",
+            "clinical_history_y",
+            "impression_x",
+            "impression_y",
+            "floating_toolbar_x",
+            "floating_toolbar_y",
+            "indicator_x",
+            "indicator_y",
+            "report_popup_x",
+            "report_popup_y",
+            "settings_x",
+            "settings_y",
+            "pick_list_popup_x",
+            "pick_list_popup_y",
+
+            // Window sizes (optional - may want to sync these)
+            // "pick_list_editor_width",
+            // "pick_list_editor_height",
+            // "report_popup_width",
+
+            // Paths - machine-specific
+            "rvucounter_path",
+
+            // Legacy keys (in case of older versions)
             "ExePath",
             "Mic Indicator EXE",
             "PosX",

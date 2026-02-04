@@ -77,12 +77,19 @@ namespace DeviceProfileManager.Services
         }
 
         // Machine-specific keys to exclude when saving
+        // These settings are workstation-specific and should not be synced
         private static readonly HashSet<string> MachineSpecificKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
+            // Paths - machine-specific executable locations
             "Mic Indicator EXE",
             "ExePath",
+
+            // Window positions - screen layout specific
             "PosX",
             "PosY"
+
+            // Note: User Name is intentionally synced as it's the same person across workstations
+            // Note: AutoStart is intentionally synced as user preference
         };
 
         public bool IsInstalled()

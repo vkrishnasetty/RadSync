@@ -572,21 +572,21 @@ namespace DeviceProfileManager
         {
             UpdateDeviceStatuses();
 
-            // Test mode: Hold Shift to simulate all utilities missing (for testing dialog UI)
-            // bool testMode = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
-
             // Get actual install status
             var logitechInstalled = _utilityChecker.IsLogitechInstalled();
             var streamDeckInstalled = _utilityChecker.IsStreamDeckInstalled();
             var speechMicInstalled = _utilityChecker.IsSpeechMicInstalled();
+            var mosaicHotkeysInstalled = _utilityChecker.IsMosaicHotkeysInstalled();
+            var mosaicToolsInstalled = _utilityChecker.IsMosaicToolsInstalled();
 
-            if (logitechInstalled && streamDeckInstalled && speechMicInstalled)
+            if (logitechInstalled && streamDeckInstalled && speechMicInstalled && mosaicHotkeysInstalled && mosaicToolsInstalled)
             {
                 SetStatusSuccess("All device utilities are installed");
             }
 
             // Show install dialog with individual download buttons (always allow access for updates)
-            var dialog = new UtilityInstallDialog(logitechInstalled, streamDeckInstalled, speechMicInstalled, _utilityChecker);
+            var dialog = new UtilityInstallDialog(logitechInstalled, streamDeckInstalled, speechMicInstalled,
+                mosaicHotkeysInstalled, mosaicToolsInstalled, _utilityChecker);
             dialog.Owner = this;
             dialog.ShowDialog();
         }
@@ -712,14 +712,17 @@ namespace DeviceProfileManager
     public class UtilityInstallDialog : Window
     {
         private readonly UtilityChecker _utilityChecker;
+        private TextBlock _statusText;
+        private StackPanel _mainStack;
 
-        public UtilityInstallDialog(bool logitechInstalled, bool streamDeckInstalled, bool speechMicInstalled, UtilityChecker utilityChecker)
+        public UtilityInstallDialog(bool logitechInstalled, bool streamDeckInstalled, bool speechMicInstalled,
+            bool mosaicHotkeysInstalled, bool mosaicToolsInstalled, UtilityChecker utilityChecker)
         {
             _utilityChecker = utilityChecker;
 
             Title = "Download Utilities";
             Width = 450;
-            Height = 380;
+            Height = 520;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             ResizeMode = ResizeMode.NoResize;
             Background = new SolidColorBrush(Color.FromRgb(0x0F, 0x17, 0x2A)); // BackgroundColor
@@ -734,7 +737,7 @@ namespace DeviceProfileManager
                 Padding = new Thickness(24)
             };
 
-            var mainStack = new StackPanel();
+            _mainStack = new StackPanel();
 
             var headerText = new TextBlock
             {
@@ -744,35 +747,54 @@ namespace DeviceProfileManager
                 Foreground = new SolidColorBrush(Color.FromRgb(0xF1, 0xF5, 0xF9)), // TextColor
                 Margin = new Thickness(0, 0, 0, 12)
             };
-            mainStack.Children.Add(headerText);
+            _mainStack.Children.Add(headerText);
 
             var noteText = new TextBlock
             {
-                Text = "Click Download to open the vendor's download page. You can download updates even if already installed.",
+                Text = "Click Download to get the latest version. Vendor apps open a download page. Mosaic tools install automatically.",
                 FontSize = 12,
                 Foreground = new SolidColorBrush(Color.FromRgb(0x94, 0xA3, 0xB8)), // SecondaryTextColor
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 0, 0, 20)
             };
-            mainStack.Children.Add(noteText);
+            _mainStack.Children.Add(noteText);
 
             // Logitech row
-            mainStack.Children.Add(CreateUtilityRow("Logitech G Hub", logitechInstalled, () =>
+            _mainStack.Children.Add(CreateUtilityRow("Logitech G Hub", logitechInstalled, () =>
             {
                 _utilityChecker.OpenLogitechDownloadPage();
             }));
 
             // Stream Deck row
-            mainStack.Children.Add(CreateUtilityRow("Elgato Stream Deck", streamDeckInstalled, () =>
+            _mainStack.Children.Add(CreateUtilityRow("Elgato Stream Deck", streamDeckInstalled, () =>
             {
                 _utilityChecker.OpenStreamDeckDownloadPage();
             }));
 
             // SpeechMic row
-            mainStack.Children.Add(CreateUtilityRow("Philips Device Control Center", speechMicInstalled, () =>
+            _mainStack.Children.Add(CreateUtilityRow("Philips Device Control Center", speechMicInstalled, () =>
             {
                 _utilityChecker.OpenSpeechMicDownloadPage();
             }));
+
+            // Mosaic Combined Hotkeys row (auto-download)
+            _mainStack.Children.Add(CreateMosaicUtilityRow("Mosaic Combined Hotkeys", mosaicHotkeysInstalled,
+                async (statusText, button) => await DownloadMosaicHotkeysAsync(statusText, button)));
+
+            // MosaicTools row (auto-download)
+            _mainStack.Children.Add(CreateMosaicUtilityRow("MosaicTools", mosaicToolsInstalled,
+                async (statusText, button) => await DownloadMosaicToolsAsync(statusText, button)));
+
+            // Status text
+            _statusText = new TextBlock
+            {
+                Text = "",
+                FontSize = 11,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x94, 0xA3, 0xB8)),
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 10, 0, 0)
+            };
+            _mainStack.Children.Add(_statusText);
 
             // Close button
             var closeButton = new Button
@@ -780,7 +802,7 @@ namespace DeviceProfileManager
                 Content = "Close",
                 Width = 80,
                 HorizontalAlignment = HorizontalAlignment.Right,
-                Margin = new Thickness(0, 20, 0, 0),
+                Margin = new Thickness(0, 10, 0, 0),
                 Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x29, 0x3B)),
                 Foreground = new SolidColorBrush(Color.FromRgb(0xF1, 0xF5, 0xF9)),
                 BorderBrush = new SolidColorBrush(Color.FromRgb(0x33, 0x41, 0x55)),
@@ -789,10 +811,62 @@ namespace DeviceProfileManager
                 Cursor = Cursors.Hand
             };
             closeButton.Click += (s, e) => Close();
-            mainStack.Children.Add(closeButton);
+            _mainStack.Children.Add(closeButton);
 
-            border.Child = mainStack;
+            border.Child = _mainStack;
             Content = border;
+        }
+
+        private async Task DownloadMosaicHotkeysAsync(TextBlock statusText, Button button)
+        {
+            button.IsEnabled = false;
+            button.Content = "Installing...";
+
+            var progress = new Progress<string>(msg => _statusText.Text = msg);
+            var (success, message) = await _utilityChecker.DownloadAndInstallMosaicHotkeysAsync(progress);
+
+            if (success)
+            {
+                statusText.Text = "Installed";
+                statusText.Foreground = new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x5E));
+                button.Content = "Reinstall";
+            }
+            else
+            {
+                button.Content = "Retry";
+            }
+
+            _statusText.Text = message;
+            _statusText.Foreground = success
+                ? new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x5E))
+                : new SolidColorBrush(Color.FromRgb(0xEF, 0x44, 0x44));
+            button.IsEnabled = true;
+        }
+
+        private async Task DownloadMosaicToolsAsync(TextBlock statusText, Button button)
+        {
+            button.IsEnabled = false;
+            button.Content = "Installing...";
+
+            var progress = new Progress<string>(msg => _statusText.Text = msg);
+            var (success, message) = await _utilityChecker.DownloadAndInstallMosaicToolsAsync(progress);
+
+            if (success)
+            {
+                statusText.Text = "Installed";
+                statusText.Foreground = new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x5E));
+                button.Content = "Reinstall";
+            }
+            else
+            {
+                button.Content = "Retry";
+            }
+
+            _statusText.Text = message;
+            _statusText.Foreground = success
+                ? new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x5E))
+                : new SolidColorBrush(Color.FromRgb(0xEF, 0x44, 0x44));
+            button.IsEnabled = true;
         }
 
         private Grid CreateUtilityRow(string name, bool isInstalled, Action downloadAction)
@@ -837,6 +911,55 @@ namespace DeviceProfileManager
                 Cursor = Cursors.Hand
             };
             downloadButton.Click += (s, e) => downloadAction();
+
+            Grid.SetColumn(downloadButton, 1);
+            grid.Children.Add(downloadButton);
+
+            return grid;
+        }
+
+        private Grid CreateMosaicUtilityRow(string name, bool isInstalled, Func<TextBlock, Button, Task> downloadAction)
+        {
+            var grid = new Grid { Margin = new Thickness(0, 0, 0, 14) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var nameStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+
+            var nameText = new TextBlock
+            {
+                Text = name,
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xF1, 0xF5, 0xF9))
+            };
+            nameStack.Children.Add(nameText);
+
+            var statusText = new TextBlock
+            {
+                Text = isInstalled ? "Installed" : "Not installed",
+                FontSize = 12,
+                Foreground = isInstalled
+                    ? new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x5E)) // SuccessColor
+                    : new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B)), // WarningColor
+                Margin = new Thickness(0, 2, 0, 0)
+            };
+            nameStack.Children.Add(statusText);
+
+            Grid.SetColumn(nameStack, 0);
+            grid.Children.Add(nameStack);
+
+            var downloadButton = new Button
+            {
+                Content = isInstalled ? "Reinstall" : "Install",
+                Width = 90,
+                Background = new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x5E)), // Green for auto-install
+                Foreground = new SolidColorBrush(Colors.White),
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(12, 8, 12, 8),
+                Cursor = Cursors.Hand
+            };
+            downloadButton.Click += async (s, e) => await downloadAction(statusText, downloadButton);
 
             Grid.SetColumn(downloadButton, 1);
             grid.Children.Add(downloadButton);

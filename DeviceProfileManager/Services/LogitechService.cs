@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Data.Sqlite;
 
 namespace DeviceProfileManager.Services
 {
@@ -22,8 +23,8 @@ namespace DeviceProfileManager.Services
         public static readonly string ExecutablePath = @"C:\Program Files\LGHUB\lghub.exe";
         public static readonly string DownloadUrl = "https://download01.logi.com/web/ftp/pub/techsupport/gaming/lghub_installer.exe";
 
-        // Only copy essential files - the SQLite databases contain all settings
-        private static readonly string[] EssentialFilePatterns = { "*.db", "*.db-shm", "*.db-wal" };
+        // Database files to copy (main db files only, WAL will be checkpointed first)
+        private static readonly string[] DatabaseFiles = { "settings.db", "privacy_settings.db" };
 
         public bool IsInstalled()
         {
@@ -62,12 +63,49 @@ namespace DeviceProfileManager.Services
                 catch { }
             }
 
-            // Wait for processes to terminate (up to 3 seconds)
-            for (int i = 0; i < 6; i++)
+            // Wait for processes to terminate (up to 5 seconds)
+            for (int i = 0; i < 10; i++)
             {
                 if (!IsRunning())
                     break;
                 Thread.Sleep(500);
+            }
+
+            // Extra wait for file handles to be released
+            Thread.Sleep(1000);
+        }
+
+        /// <summary>
+        /// Checkpoints the SQLite WAL (Write-Ahead Log) into the main database file.
+        /// This ensures all pending changes are written to the .db file before copying.
+        /// </summary>
+        private static void CheckpointDatabase(string dbPath)
+        {
+            if (!File.Exists(dbPath))
+                return;
+
+            try
+            {
+                var connectionString = new SqliteConnectionStringBuilder
+                {
+                    DataSource = dbPath,
+                    Mode = SqliteOpenMode.ReadWrite
+                }.ToString();
+
+                using (var connection = new SqliteConnection(connectionString))
+                {
+                    connection.Open();
+                    using (var cmd = connection.CreateCommand())
+                    {
+                        // TRUNCATE mode: checkpoint and then truncate the WAL file
+                        cmd.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch
+            {
+                // If checkpoint fails, we'll still copy the files as-is
             }
         }
 
@@ -100,6 +138,13 @@ namespace DeviceProfileManager.Services
                     await Task.Run(() => CloseApplication()).ConfigureAwait(false);
                 }
 
+                // Checkpoint WAL files to ensure all changes are in the main .db files
+                foreach (var dbFile in DatabaseFiles)
+                {
+                    var dbPath = Path.Combine(LghubPath, dbFile);
+                    CheckpointDatabase(dbPath);
+                }
+
                 var exportDir = Path.Combine(profilePath, "logitech");
 
                 // Clear existing export directory
@@ -111,18 +156,19 @@ namespace DeviceProfileManager.Services
 
                 bool copiedSomething = false;
 
-                // Only copy essential database files from LGHUB
+                // Copy database files from LGHUB (only main .db files after checkpoint)
                 var lghubExportDir = Path.Combine(exportDir, "LGHUB");
                 Directory.CreateDirectory(lghubExportDir);
 
-                foreach (var pattern in EssentialFilePatterns)
+                foreach (var dbFile in DatabaseFiles)
                 {
-                    foreach (var file in Directory.GetFiles(LghubPath, pattern))
+                    var sourcePath = Path.Combine(LghubPath, dbFile);
+                    if (File.Exists(sourcePath))
                     {
                         try
                         {
-                            var destFile = Path.Combine(lghubExportDir, Path.GetFileName(file));
-                            File.Copy(file, destFile, true);
+                            var destFile = Path.Combine(lghubExportDir, dbFile);
+                            File.Copy(sourcePath, destFile, true);
                             copiedSomething = true;
                         }
                         catch { }
@@ -174,29 +220,38 @@ namespace DeviceProfileManager.Services
                     await Task.Run(() => CloseApplication()).ConfigureAwait(false);
                 }
 
+                // Ensure LGHUB directory exists
+                if (!Directory.Exists(LghubPath))
+                {
+                    Directory.CreateDirectory(LghubPath);
+                }
+
                 // Restore database files to LGHUB
                 var lghubImportDir = Path.Combine(importDir, "LGHUB");
                 if (Directory.Exists(lghubImportDir))
                 {
-                    // Only delete and replace the database files, keep other files intact
-                    foreach (var pattern in EssentialFilePatterns)
+                    // Delete existing db, shm, and wal files to ensure clean import
+                    foreach (var dbFile in DatabaseFiles)
                     {
-                        // Delete existing db files
-                        foreach (var file in Directory.GetFiles(LghubPath, pattern))
-                        {
-                            try { File.Delete(file); } catch { }
-                        }
+                        var basePath = Path.Combine(LghubPath, dbFile);
+                        try { if (File.Exists(basePath)) File.Delete(basePath); } catch { }
+                        try { if (File.Exists(basePath + "-shm")) File.Delete(basePath + "-shm"); } catch { }
+                        try { if (File.Exists(basePath + "-wal")) File.Delete(basePath + "-wal"); } catch { }
                     }
 
-                    // Copy new db files
-                    foreach (var file in Directory.GetFiles(lghubImportDir))
+                    // Copy the checkpointed database files
+                    foreach (var dbFile in DatabaseFiles)
                     {
-                        try
+                        var sourcePath = Path.Combine(lghubImportDir, dbFile);
+                        if (File.Exists(sourcePath))
                         {
-                            var destFile = Path.Combine(LghubPath, Path.GetFileName(file));
-                            File.Copy(file, destFile, true);
+                            try
+                            {
+                                var destFile = Path.Combine(LghubPath, dbFile);
+                                File.Copy(sourcePath, destFile, true);
+                            }
+                            catch { }
                         }
-                        catch { }
                     }
                 }
 
